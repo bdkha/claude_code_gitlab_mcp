@@ -18,9 +18,23 @@ OAuth 2.0 login (authorization-code + PKCE) with automatic refresh.
   - A **Personal Access Token** with `api` scope, **or**
   - A registered **OAuth Application** in your GitLab
 
-## Install & build
+## Install
+
+Most users do **not** need to clone or build. The published npm package can be
+launched on demand via `npx`:
 
 ```bash
+npx -y @bdkha/gitlab-mr-mcp@latest help
+```
+
+Pin to a specific version with `@bdkha/gitlab-mr-mcp@0.2.0`. See
+[Use with Claude Code](#use-with-claude-code) for the actual registration.
+
+### Build from source (contributors only)
+
+```bash
+git clone https://github.com/bdkha/claude_code_gitlab_mcp.git
+cd claude_code_gitlab_mcp
 npm install
 npm run build
 ```
@@ -97,22 +111,31 @@ Important: `-e` env flags must appear **before** the `--` separator. Anything
 after `--` is treated as the server command + its args, so loose `-e` tokens
 there will be passed to your shell as separate commands.
 
-**PAT path:**
+**PAT path (recommended for first install):**
 
 ```bash
 claude mcp add gitlab-mr \
   -e GITLAB_URL=https://gitlab.example.com \
   -e GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx \
-  -- node /Users/kha/Documents/hu/mcp/dist/index.js
+  -- npx -y @bdkha/gitlab-mr-mcp@latest
 ```
 
-**OAuth path** (after running `gitlab-mr-mcp login` once):
+**OAuth path** (after running `npx -y @bdkha/gitlab-mr-mcp@latest login` once):
 
 ```bash
 claude mcp add gitlab-mr \
   -e GITLAB_URL=https://gitlab.example.com \
   -e GITLAB_OAUTH_CLIENT_ID=xxxxxxxxxxxx \
-  -- node /Users/kha/Documents/hu/mcp/dist/index.js
+  -- npx -y @bdkha/gitlab-mr-mcp@latest
+```
+
+**Local dev build** (if you cloned the repo and ran `npm run build`):
+
+```bash
+claude mcp add gitlab-mr \
+  -e GITLAB_URL=https://gitlab.example.com \
+  -e GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx \
+  -- node /absolute/path/to/dist/index.js
 ```
 
 Verify it was registered correctly:
@@ -131,15 +154,15 @@ Then in any session you can ask things like:
 
 ## Use with Claude Desktop
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json`. Use the
-`env` block to set whichever credentials you prefer (PAT or OAuth client id):
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`. The
+recommended config uses `npx` so updates flow without rebuilding:
 
 ```json
 {
   "mcpServers": {
     "gitlab-mr": {
-      "command": "node",
-      "args": ["/Users/kha/Documents/hu/mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@bdkha/gitlab-mr-mcp@latest"],
       "env": {
         "GITLAB_URL": "https://gitlab.example.com",
         "GITLAB_TOKEN": "glpat-xxxxxxxxxxxxxxxxxxxx"
@@ -151,7 +174,8 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`. Use the
 
 For the OAuth path, replace `GITLAB_TOKEN` with `GITLAB_OAUTH_CLIENT_ID` (and
 optionally `GITLAB_OAUTH_CLIENT_SECRET`). Tokens are picked up from
-`~/.config/gitlab-mr-mcp/tokens.json` after a one-time `gitlab-mr-mcp login`.
+`~/.config/gitlab-mr-mcp/tokens.json` after a one-time
+`npx -y @bdkha/gitlab-mr-mcp@latest login`.
 
 Restart Claude Desktop. The `gitlab-mr` server should appear in the tools list.
 

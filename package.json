@@ -1,20 +1,44 @@
 {
-  "name": "gitlab-mr-mcp",
-  "version": "0.1.0",
+  "name": "@bdkha/gitlab-mr-mcp",
+  "version": "0.2.0",
   "description": "MCP server to read and review GitLab merge requests on a self-hosted GitLab instance",
   "type": "module",
+  "license": "MIT",
+  "author": "KHA Bui Dinh <khabd@sanancorp.com>",
+  "homepage": "https://github.com/bdkha/claude_code_gitlab_mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bdkha/claude_code_gitlab_mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bdkha/claude_code_gitlab_mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "gitlab",
+    "merge-request",
+    "code-review",
+    "claude",
+    "claude-code"
+  ],
   "bin": {
     "gitlab-mr-mcp": "./dist/index.js"
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
