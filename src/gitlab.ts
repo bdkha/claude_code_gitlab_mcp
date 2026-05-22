@@ -1,5 +1,6 @@
+import type { AuthProvider } from "./auth/index.js";
+
 const URL_ENV = "GITLAB_URL";
-const TOKEN_ENV = "GITLAB_TOKEN";
 
 export class GitLabError extends Error {
   constructor(
@@ -22,15 +23,11 @@ export interface GitLabResponse<T> {
 
 export class GitLabClient {
   private readonly baseUrl: string;
-  private readonly token: string;
 
-  constructor() {
+  constructor(private readonly auth: AuthProvider) {
     const url = process.env[URL_ENV];
-    const token = process.env[TOKEN_ENV];
     if (!url) throw new Error(`${URL_ENV} env var is required`);
-    if (!token) throw new Error(`${TOKEN_ENV} env var is required`);
     this.baseUrl = url.replace(/\/+$/, "") + "/api/v4";
-    this.token = token;
   }
 
   encodeProject(project: string | number): string {
@@ -44,6 +41,15 @@ export class GitLabClient {
     path: string,
     opts: { query?: Record<string, QueryValue>; body?: unknown } = {},
   ): Promise<GitLabResponse<T>> {
+    return this.requestOnce<T>(method, path, opts, true);
+  }
+
+  private async requestOnce<T>(
+    method: string,
+    path: string,
+    opts: { query?: Record<string, QueryValue>; body?: unknown },
+    allowAuthRetry: boolean,
+  ): Promise<GitLabResponse<T>> {
     const url = new URL(this.baseUrl + path);
     if (opts.query) {
       for (const [k, v] of Object.entries(opts.query)) {
@@ -51,8 +57,9 @@ export class GitLabClient {
         url.searchParams.set(k, String(v));
       }
     }
+    const authHeader = await this.auth.getAuthHeader();
     const headers: Record<string, string> = {
-      "PRIVATE-TOKEN": this.token,
+      [authHeader.name]: authHeader.value,
       Accept: "application/json",
     };
     let body: string | undefined;
@@ -68,6 +75,12 @@ export class GitLabClient {
         data = JSON.parse(text);
       } catch {
         data = text;
+      }
+    }
+    if (res.status === 401 && allowAuthRetry) {
+      const refreshed = await this.auth.invalidate();
+      if (refreshed) {
+        return this.requestOnce<T>(method, path, opts, false);
       }
     }
     if (!res.ok) {
