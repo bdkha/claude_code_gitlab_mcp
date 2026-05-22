@@ -1,0 +1,30 @@
+{
+  "name": "gitlab-mr-mcp",
+  "version": "0.1.0",
+  "description": "MCP server to read and review GitLab merge requests on a self-hosted GitLab instance",
+  "type": "module",
+  "bin": {
+    "gitlab-mr-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.14.0"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}
