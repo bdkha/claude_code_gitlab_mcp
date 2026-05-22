@@ -97,10 +97,21 @@ Important: `-e` env flags must appear **before** the `--` separator. Anything
 after `--` is treated as the server command + its args, so loose `-e` tokens
 there will be passed to your shell as separate commands.
 
+**PAT path:**
+
 ```bash
 claude mcp add gitlab-mr \
   -e GITLAB_URL=https://gitlab.example.com \
   -e GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx \
+  -- node /Users/kha/Documents/hu/mcp/dist/index.js
+```
+
+**OAuth path** (after running `gitlab-mr-mcp login` once):
+
+```bash
+claude mcp add gitlab-mr \
+  -e GITLAB_URL=https://gitlab.example.com \
+  -e GITLAB_OAUTH_CLIENT_ID=xxxxxxxxxxxx \
   -- node /Users/kha/Documents/hu/mcp/dist/index.js
 ```
 
@@ -120,7 +131,8 @@ Then in any session you can ask things like:
 
 ## Use with Claude Desktop
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`. Use the
+`env` block to set whichever credentials you prefer (PAT or OAuth client id):
 
 ```json
 {
@@ -136,6 +148,10 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
   }
 }
 ```
+
+For the OAuth path, replace `GITLAB_TOKEN` with `GITLAB_OAUTH_CLIENT_ID` (and
+optionally `GITLAB_OAUTH_CLIENT_SECRET`). Tokens are picked up from
+`~/.config/gitlab-mr-mcp/tokens.json` after a one-time `gitlab-mr-mcp login`.
 
 Restart Claude Desktop. The `gitlab-mr` server should appear in the tools list.
 
@@ -205,3 +221,6 @@ For **unchanged context** lines, set both `new_line` and `old_line`.
   out of scope; this server is focused on MR review.
 - Errors from GitLab are surfaced verbatim (status + body), so 401/403 typically
   indicate token scope or permissions.
+- On 401 with an OAuth token, the client refreshes once and retries
+  transparently. If refresh fails (refresh token expired/revoked), run
+  `gitlab-mr-mcp logout && gitlab-mr-mcp login` to re-authorize.
