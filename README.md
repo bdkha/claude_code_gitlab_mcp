@@ -1,11 +1,21 @@
 # gitlab-mr-mcp
 
-An MCP (Model Context Protocol) server that lets Claude **read and review
-Merge Requests on a self-hosted GitLab instance**.
+An MCP (Model Context Protocol) server that lets Claude **work with a
+self-hosted GitLab instance**: merge requests, issues, repository, pipelines
+and more.
 
-It exposes tools for listing/inspecting MRs, fetching diffs and discussions,
-posting general and inline review comments, replying to and resolving threads,
-and approving/unapproving merge requests — all through the GitLab REST API.
+Tools are grouped into toolsets you can enable selectively:
+
+- **merge_requests** — list/inspect MRs, diffs and discussions, review
+  comments, approve, plus create/update/merge/rebase.
+- **issues** — list/inspect, create/update/close, comment.
+- **repository** — browse the tree, read files, branches, commits, compare.
+- **pipelines** — pipelines and jobs, job logs, run/retry/cancel.
+- **projects** — projects, search, labels, milestones, users.
+- **api** — `gitlab_api`, a guarded generic call for any other REST endpoint.
+
+Everything goes through the GitLab REST API. A read-only mode and a DELETE
+guard are available (see [Safety](#safety)).
 
 Authentication can use either a Personal Access Token **or** a browser-based
 OAuth 2.0 login (authorization-code + PKCE) with automatic refresh.
@@ -55,6 +65,9 @@ required; for credentials, set **either** `GITLAB_TOKEN` (PAT path) **or** the
 | `GITLAB_OAUTH_CLIENT_SECRET` | optional  | Only for **confidential** OAuth apps. Public/PKCE apps omit this.     |
 | `GITLAB_OAUTH_SCOPE`         | optional  | Default `api`.                                                         |
 | `GITLAB_OAUTH_REDIRECT_PORT` | optional  | Loopback port for the OAuth callback. Default `7898`.                  |
+| `GITLAB_TOOLSETS`            | optional  | Comma-separated toolsets to enable. Default: all (see [Tools](#tools)). |
+| `GITLAB_READ_ONLY`           | optional  | `true` → no write tools; `gitlab_api` allows `GET` only.               |
+| `GITLAB_ALLOW_DELETE`        | optional  | `true` → allow `DELETE` through `gitlab_api`. Blocked by default.      |
 
 Priority when both PAT and a cached OAuth token are present (and matching
 `GITLAB_URL`): OAuth wins. PAT is the fallback. A sample `.env.example` is
@@ -182,10 +195,14 @@ Restart Claude Desktop. The `gitlab-mr` server should appear in the tools list.
 ## Tools
 
 All tools accept `project` as either a numeric project ID or a URL-encoded
-project path (`group/subgroup/project`). `iid` is the merge request's internal
-ID as shown in the URL.
+project path (`group/subgroup/project`). `iid` is the merge request's (or
+issue's) internal ID as shown in the URL. List tools accept `per_page` / `page`.
 
-### Read
+All toolsets are enabled by default (49 tools). To save context, enable only
+what you need, e.g. `GITLAB_TOOLSETS=merge_requests,pipelines`. Tools marked
+✎ are write tools and are not registered when `GITLAB_READ_ONLY=true`.
+
+### merge_requests
 
 - `list_merge_requests` — filter by `state`, `author_username`,
   `assignee_username`, `reviewer_username`, `labels`, `target_branch`,
@@ -197,19 +214,73 @@ ID as shown in the URL.
 - `list_merge_request_discussions` — threaded discussions with diff position
   and resolved status.
 - `list_merge_request_notes` — flat (non-threaded) notes list.
-
-### Write
-
-- `create_merge_request_note` — post a general comment.
-- `create_merge_request_discussion` — post an inline diff comment. Requires
+- `list_merge_request_commits`, `list_merge_request_pipelines`.
+- ✎ `create_merge_request_note` — post a general comment.
+- ✎ `create_merge_request_discussion` — post an inline diff comment. Requires
   a `position` built from `get_merge_request`'s `diff_refs` plus the file
   path and line number from `get_merge_request_diff`.
-- `reply_to_discussion` — reply to an existing thread by `discussion_id`.
-- `resolve_discussion` — mark a thread resolved (or unresolved with
+- ✎ `reply_to_discussion` — reply to an existing thread by `discussion_id`.
+- ✎ `resolve_discussion` — mark a thread resolved (or unresolved with
   `resolved: false`).
-- `approve_merge_request` — optional `sha` to guard against approving an
+- ✎ `approve_merge_request` — optional `sha` to guard against approving an
   outdated commit.
-- `unapprove_merge_request`.
+- ✎ `unapprove_merge_request`.
+- ✎ `create_merge_request`, `update_merge_request` (incl. `state_event`
+  close/reopen).
+- ✎ `merge_merge_request` — irreversible; pass `sha` (head SHA) so GitLab
+  rejects the merge if the branch moved.
+- ✎ `rebase_merge_request` — asynchronous; check `rebase_in_progress` with
+  `get_merge_request`.
+
+### issues
+
+- `list_issues` — omit `project` to list across projects (with `scope`).
+- `get_issue`, `list_issue_notes`.
+- ✎ `create_issue`, `update_issue` (incl. `state_event` close/reopen),
+  `create_issue_note`.
+
+### repository
+
+- `get_repository_tree` — `path`, `ref`, `recursive`.
+- `get_file` — raw content; `ref` defaults to `HEAD`; optional
+  `start_line` / `end_line`; truncated at `max_chars` (default 100000).
+- `list_branches`, `get_branch`.
+- `list_commits`, `get_commit` (`include_diff` adds the first page of the
+  diff), `compare` (`from`, `to`). Diff output is truncated at `max_chars`.
+- ✎ `create_branch`.
+
+### pipelines
+
+- `list_pipelines`, `get_pipeline`, `list_pipeline_jobs`, `get_job`.
+- `get_job_log` — last `tail_lines` lines of the job trace (default 200,
+  max 5000).
+- ✎ `create_pipeline` (`ref`, `variables`), `retry_pipeline`,
+  `cancel_pipeline`, `retry_job`, `cancel_job`.
+
+### projects
+
+- `list_projects`, `get_project`, `get_current_user`, `list_users`.
+- `list_labels`, `list_milestones`.
+- `search` — `scope` = projects/issues/merge_requests/milestones/blobs/
+  commits/users; global `blobs` search may require Advanced Search on
+  self-hosted GitLab.
+
+### api
+
+- `gitlab_api` — `method`, `path` (relative, without `/api/v4`, e.g.
+  `/projects/1/wikis`), optional `query` and `body`. Use it for endpoints the
+  other tools don't cover. Always registered; see [Safety](#safety).
+
+## Safety
+
+- `GITLAB_READ_ONLY=true` registers no write tools, and `gitlab_api` rejects
+  every method except `GET`.
+- `DELETE` through `gitlab_api` is rejected unless `GITLAB_ALLOW_DELETE=true`.
+  Read-only mode always wins. There are no dedicated delete tools.
+- `gitlab_api` only accepts paths relative to `/api/v4` on `GITLAB_URL`;
+  absolute URLs are rejected so the token is never sent to another host.
+- These checks run before any request is sent. Your token's own permissions
+  still apply on top.
 
 ## Posting an inline comment — example
 
@@ -241,8 +312,8 @@ For **unchanged context** lines, set both `new_line` and `old_line`.
 - v0.1 has no automatic pagination — `per_page` and `page` are exposed on
   list/diff tools and the response footer reports `nextPage` from
   GitLab's `x-next-page` header.
-- Issues, pipelines, releases, and MR creation/merging are intentionally
-  out of scope; this server is focused on MR review.
+- Wiki, releases/tags, file commits and snippets have no dedicated tools yet;
+  use `gitlab_api` for them.
 - Errors from GitLab are surfaced verbatim (status + body), so 401/403 typically
   indicate token scope or permissions.
 - On 401 with an OAuth token, the client refreshes once and retries

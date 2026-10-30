@@ -1,7 +1,7 @@
 {
   "name": "@bdkha/gitlab-mr-mcp",
-  "version": "0.2.0",
-  "description": "MCP server to read and review GitLab merge requests on a self-hosted GitLab instance",
+  "version": "0.3.0",
+  "description": "MCP server for a self-hosted GitLab instance: merge requests, issues, repository, pipelines and a generic API tool",
   "type": "module",
   "license": "MIT",
   "author": "KHA Bui Dinh <khabd@sanancorp.com>",
@@ -19,6 +19,9 @@
     "gitlab",
     "merge-request",
     "code-review",
+    "issues",
+    "pipelines",
+    "ci",
     "claude",
     "claude-code"
   ],

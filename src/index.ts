@@ -2,8 +2,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { GitLabClient } from "./gitlab.js";
-import { registerReadTools } from "./tools/read.js";
-import { registerWriteTools } from "./tools/write.js";
+import { registerTools } from "./tools/index.js";
+import { loadToolConfig } from "./config.js";
 import { createAuthProvider } from "./auth/index.js";
 import {
   loadOAuthConfig,
@@ -36,17 +36,21 @@ async function main(): Promise<void> {
 }
 
 async function runServer(): Promise<void> {
+  const cfg = loadToolConfig();
   const auth = await createAuthProvider();
   const gl = new GitLabClient(auth);
   const server = new McpServer({
     name: "gitlab-mr-mcp",
-    version: "0.2.0",
+    version: "0.3.0",
   });
-  registerReadTools(server, gl);
-  registerWriteTools(server, gl);
+  registerTools(server, gl, cfg);
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`gitlab-mr-mcp running on stdio (auth: ${auth.describe()})`);
+  console.error(
+    `gitlab-mr-mcp running on stdio (auth: ${auth.describe()}; toolsets: ${[
+      ...cfg.toolsets,
+    ].join(",")}${cfg.readOnly ? "; read-only" : ""})`,
+  );
 }
 
 async function loginCommand(): Promise<void> {
@@ -137,7 +141,7 @@ async function statusCommand(): Promise<void> {
 }
 
 function helpCommand(): void {
-  console.error(`gitlab-mr-mcp — MCP server for GitLab merge-request review
+  console.error(`gitlab-mr-mcp — MCP server for self-hosted GitLab (MRs, issues, repository, pipelines)
 
 Usage:
   gitlab-mr-mcp              Run the MCP server on stdio (default)
@@ -153,6 +157,12 @@ Auth env vars:
   GITLAB_OAUTH_CLIENT_SECRET  optional, for confidential OAuth apps
   GITLAB_OAUTH_SCOPE          optional, default "api"
   GITLAB_OAUTH_REDIRECT_PORT  optional, default 7898
+
+Tool env vars:
+  GITLAB_TOOLSETS             comma-separated toolsets to enable (default: all)
+                              merge_requests,issues,repository,pipelines,projects,api
+  GITLAB_READ_ONLY            "true" to register no write tools; gitlab_api allows GET only
+  GITLAB_ALLOW_DELETE         "true" to allow DELETE via gitlab_api (blocked by default)
 
 Token cache: ~/.config/gitlab-mr-mcp/tokens.json (chmod 600)`);
 }

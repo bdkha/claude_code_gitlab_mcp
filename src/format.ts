@@ -3,6 +3,23 @@ export function toText(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+export function truncate(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  return (
+    text.slice(0, maxChars) +
+    `\n\n[truncated: showing ${maxChars} of ${text.length} chars]`
+  );
+}
+
+export function tailLines(text: string, n: number): string {
+  const lines = text.replace(/\n$/, "").split("\n");
+  if (lines.length <= n) return text;
+  return (
+    `[showing last ${n} of ${lines.length} lines]\n\n` +
+    lines.slice(-n).join("\n")
+  );
+}
+
 export function paginationFooter(headers: Record<string, string>): string {
   const parts: string[] = [];
   const page = headers["x-page"];
