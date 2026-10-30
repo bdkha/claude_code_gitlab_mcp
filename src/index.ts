@@ -41,7 +41,7 @@ async function runServer(): Promise<void> {
   const gl = new GitLabClient(auth);
   const server = new McpServer({
     name: "gitlab-mr-mcp",
-    version: "0.3.0",
+    version: "0.3.1",
   });
   registerTools(server, gl, cfg);
   const transport = new StdioServerTransport();

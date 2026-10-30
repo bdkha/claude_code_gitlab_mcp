@@ -1,6 +1,6 @@
 {
   "name": "@bdkha/gitlab-mr-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MCP server for a self-hosted GitLab instance: merge requests, issues, repository, pipelines and a generic API tool",
   "type": "module",
   "license": "MIT",
