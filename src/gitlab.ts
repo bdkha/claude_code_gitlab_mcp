@@ -15,6 +15,13 @@ export class GitLabError extends Error {
 
 export type QueryValue = string | number | boolean | undefined | null;
 
+export interface RequestOptions {
+  query?: Record<string, QueryValue>;
+  body?: unknown;
+  /** Return the response body as text without JSON parsing (raw files, job logs). */
+  raw?: boolean;
+}
+
 export interface GitLabResponse<T> {
   data: T;
   status: number;
@@ -39,7 +46,7 @@ export class GitLabClient {
   async request<T = unknown>(
     method: string,
     path: string,
-    opts: { query?: Record<string, QueryValue>; body?: unknown } = {},
+    opts: RequestOptions = {},
   ): Promise<GitLabResponse<T>> {
     return this.requestOnce<T>(method, path, opts, true);
   }
@@ -47,7 +54,7 @@ export class GitLabClient {
   private async requestOnce<T>(
     method: string,
     path: string,
-    opts: { query?: Record<string, QueryValue>; body?: unknown },
+    opts: RequestOptions,
     allowAuthRetry: boolean,
   ): Promise<GitLabResponse<T>> {
     const url = new URL(this.baseUrl + path);
@@ -70,7 +77,9 @@ export class GitLabClient {
     const res = await fetch(url, { method, headers, body });
     const text = await res.text();
     let data: unknown = null;
-    if (text) {
+    if (opts.raw && res.ok) {
+      data = text;
+    } else if (text) {
       try {
         data = JSON.parse(text);
       } catch {
@@ -101,6 +110,10 @@ export class GitLabClient {
 
   get<T = unknown>(path: string, query?: Record<string, QueryValue>) {
     return this.request<T>("GET", path, { query });
+  }
+
+  getRaw(path: string, query?: Record<string, QueryValue>) {
+    return this.request<string>("GET", path, { query, raw: true });
   }
 
   post<T = unknown>(
